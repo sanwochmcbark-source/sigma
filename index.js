@@ -2,20 +2,26 @@ const express = require("express");
 const fetch = require("node-fetch");
 const app = express();
 
-const API_KEY = process.env.SCRAPINGBEE_KEY; // Read from env
+const API_KEY = process.env.SCRAPINGBEE_KEY;
 
 app.get("/fetch", async (req, res) => {
   const url = req.query.url;
-  if (!url) return res.send("Missing URL");
+  if (!url) return res.status(400).send("Missing URL");
 
-  const apiUrl =
-    `https://app.scrapingbee.com/api/v1?api_key=${API_KEY}` +
-    `&render_js=true&url=${encodeURIComponent(url)}`;
+  // Detect if it's JSON API (DuckDuckGo)
+  const isJson = url.includes("api.duckduckgo.com");
 
   try {
+    const apiUrl = `https://app.scrapingbee.com/api/v1?api_key=${API_KEY}&url=${encodeURIComponent(url)}&render_js=false`;
     const response = await fetch(apiUrl);
-    const html = await response.text();
-    res.send(html);
+
+    if (isJson) {
+      const json = await response.text(); // Get the raw JSON text
+      res.type("application/json").send(json); // Force JSON MIME type
+    } else {
+      const html = await response.text();
+      res.send(html);
+    }
   } catch (e) {
     res.status(500).send("Error fetching page");
   }
