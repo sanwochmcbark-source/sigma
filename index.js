@@ -9,7 +9,6 @@ app.get("/fetch", async (req, res) => {
   if (!url) return res.status(400).send("Missing URL");
 
   try {
-    // Check if it's the DuckDuckGo API request
     const isDuckAPI = url.includes("api.duckduckgo.com");
 
     const apiUrl = `https://app.scrapingbee.com/api/v1?api_key=${API_KEY}&url=${encodeURIComponent(url)}&render_js=false&extract_rules=[]`;
@@ -17,12 +16,10 @@ app.get("/fetch", async (req, res) => {
     const response = await fetch(apiUrl);
 
     if (isDuckAPI) {
-      // Return raw JSON
       const jsonText = await response.text();
       res.setHeader("Content-Type", "application/json");
       res.send(jsonText);
     } else {
-      // For normal websites, return HTML
       const html = await response.text();
       res.send(html);
     }
