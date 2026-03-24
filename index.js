@@ -8,21 +8,26 @@ app.get("/fetch", async (req, res) => {
   const url = req.query.url;
   if (!url) return res.status(400).send("Missing URL");
 
-  // Detect if it's JSON API (DuckDuckGo)
-  const isJson = url.includes("api.duckduckgo.com");
-
   try {
-    const apiUrl = `https://app.scrapingbee.com/api/v1?api_key=${API_KEY}&url=${encodeURIComponent(url)}&render_js=false`;
+    // Check if it's the DuckDuckGo API request
+    const isDuckAPI = url.includes("api.duckduckgo.com");
+
+    const apiUrl = `https://app.scrapingbee.com/api/v1?api_key=${API_KEY}&url=${encodeURIComponent(url)}&render_js=false&extract_rules=[]`;
+
     const response = await fetch(apiUrl);
 
-    if (isJson) {
-      const json = await response.text(); // Get the raw JSON text
-      res.type("application/json").send(json); // Force JSON MIME type
+    if (isDuckAPI) {
+      // Return raw JSON
+      const jsonText = await response.text();
+      res.setHeader("Content-Type", "application/json");
+      res.send(jsonText);
     } else {
+      // For normal websites, return HTML
       const html = await response.text();
       res.send(html);
     }
-  } catch (e) {
+  } catch (err) {
+    console.error(err);
     res.status(500).send("Error fetching page");
   }
 });
