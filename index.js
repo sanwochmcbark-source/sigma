@@ -1,3 +1,4 @@
+
 app.get("/fetch", async (req, res) => {
   const url = req.query.url;
   if (!url) return res.status(400).send("Missing URL");
@@ -17,5 +18,6 @@ app.get("/fetch", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).send("Error fetching page");
-  }
+    app.get("/", (req, res) => {
+  res.send("Server is running ✅");
 });
