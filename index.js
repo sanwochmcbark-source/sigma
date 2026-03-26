@@ -7,6 +7,7 @@ const app = express();
 // serve frontend
 app.use(express.static(path.join(__dirname)));
 
+// 🔥 FULL PROXY
 app.get("/proxy", async (req, res) => {
   const target = req.query.url;
   if (!target) return res.status(400).send("No URL");
@@ -18,42 +19,45 @@ app.get("/proxy", async (req, res) => {
 
     const contentType = response.headers.get("content-type") || "";
 
-    // pass through non-html (images, etc.)
+    // non-html
     if (!contentType.includes("text/html")) {
       const buffer = await response.buffer();
       res.setHeader("Content-Type", contentType);
       return res.send(buffer);
     }
 
-    let text = await response.text();
+    let html = await response.text();
     const base = new URL(target).origin;
 
-    // 🔥 rewrite relative paths
-    text = text.replace(/(href|src|action)=["']\/(.*?)["']/gi,
-      (m, attr, path) =>
-        `${attr}="/proxy?url=${encodeURIComponent(base + "/" + path)}"`
-    );
+    // 🔥 rewrite links
+    html = html.replace(/(href|src|action)=["'](.*?)["']/gi, (m, attr, url) => {
+      if (url.startsWith("http")) {
+        return `${attr}="/proxy?url=${encodeURIComponent(url)}"`;
+      }
+      return `${attr}="/proxy?url=${encodeURIComponent(base + url)}"`;
+    });
 
-    // 🔥 rewrite absolute links
-    text = text.replace(/(href|src|action)=["']https?:\/\/(.*?)["']/gi,
-      (m, attr, url) =>
-        `${attr}="/proxy?url=${encodeURIComponent("https://" + url)}"`
-    );
-
-    // 🔥 rewrite JS fetch calls
-    text = text.replace(/fetch\(["'](.*?)["']/gi,
-      (m, url) =>
-        `fetch("/proxy?url=${encodeURIComponent(url)}"`
+    // 🔥 rewrite JS fetch
+    html = html.replace(/fetch\(["'](.*?)["']/gi,
+      (m, url) => `fetch("/proxy?url=${encodeURIComponent(url)}"`
     );
 
     // 🔥 rewrite window.location
-    text = text.replace(/window\.location\s*=\s*["'](.*?)["']/gi,
-      (m, url) =>
-        `window.location="/proxy?url=${encodeURIComponent(url)}"`
+    html = html.replace(/window\.location\s*=\s*["'](.*?)["']/gi,
+      (m, url) => `window.location="/proxy?url=${encodeURIComponent(url)}"`
     );
 
+    // 🔥 inject service worker
+    html = html.replace("</body>", `
+      <script>
+        if('serviceWorker' in navigator){
+          navigator.serviceWorker.register('/sw.js');
+        }
+      </script>
+    </body>`);
+
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.send(text);
+    res.send(html);
 
   } catch (err) {
     console.error(err);
