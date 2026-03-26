@@ -26,13 +26,30 @@ app.get("/proxy", async (req, res) => {
   if (!target) return res.status(400).send("No URL");
 
   try {
-    const response = await fetch(target, {
-      headers: {
-        "User-Agent": req.headers["user-agent"] || "Mozilla/5.0",
-        "Accept": req.headers["accept"] || "*/*",
-        "Accept-Language": req.headers["accept-language"] || "en-US"
+    let response;
+    
+    try {
+      // 🟢 Try normal fetch first
+      response = await fetch(target, {
+        headers: {
+          "User-Agent": req.headers["user-agent"] || "Mozilla/5.0",
+          "Accept": req.headers["accept"] || "*/*",
+          "Accept-Language": req.headers["accept-language"] || "en-US"
+        }
+      });
+    
+      // If blocked or bad response → force fallback
+      if (!response.ok || response.status >= 400) {
+        throw new Error("Primary fetch failed");
       }
-    });
+    
+    } catch (err) {
+      console.log("🔁 Falling back to ScrapingBee...");
+    
+      const beeUrl = `https://app.scrapingbee.com/api/v1/?api_key=${SCRAPINGBEE_API_KEY}&url=${encodeURIComponent(target)}&render_js=true`;
+    
+      response = await fetch(beeUrl);
+    }
 
     const contentType = response.headers.get("content-type") || "";
 
