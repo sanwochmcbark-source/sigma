@@ -4,44 +4,56 @@ const path = require("path");
 
 const app = express();
 
-app.use(express.static(path.join(__dirname))); // 🔥 ADD THIS
+// serve frontend
+app.use(express.static(path.join(__dirname)));
 
-const SCRAPINGBEE_API_KEY = process.env.SCRAPINGBEE_API_KEY;
-
-app.get("/fetch", async (req, res) => {
-  const targetUrl = req.query.url;
-  if (!targetUrl) return res.status(400).send("Missing URL");
+app.get("/proxy", async (req, res) => {
+  const target = req.query.url;
+  if (!target) return res.status(400).send("No URL");
 
   try {
-    const scrapingBeeUrl = `https://app.scrapingbee.com/api/v1/?api_key=${SCRAPINGBEE_API_KEY}&url=${encodeURIComponent(targetUrl)}&render_js=false&block_resources=true`;
-
-    const response = await fetch(scrapingBeeUrl);
+    const response = await fetch(target, {
+      headers: { "User-Agent": "Mozilla/5.0" }
+    });
 
     const contentType = response.headers.get("content-type") || "";
 
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("X-Frame-Options", "ALLOWALL");
-
-    if (contentType.includes("text/html")) {
-      let text = await response.text();
-
-    // 🔥 FIX RELATIVE PATHS
-    const base = new URL(targetUrl).origin;
-    
-    text = text.replace(/(href|src)=["']\/(.*?)["']/gi, (match, attr, path) => {
-      return `${attr}="${base}/${path}"`;
-    });
-
-      text = text
-        .replace(/X-Frame-Options/gi, "")
-        .replace(/Content-Security-Policy/gi, "");
-
-      res.send(text);
-    } else {
+    // pass through non-html (images, etc.)
+    if (!contentType.includes("text/html")) {
       const buffer = await response.buffer();
       res.setHeader("Content-Type", contentType);
-      res.send(buffer);
+      return res.send(buffer);
     }
+
+    let text = await response.text();
+    const base = new URL(target).origin;
+
+    // 🔥 rewrite relative paths
+    text = text.replace(/(href|src|action)=["']\/(.*?)["']/gi,
+      (m, attr, path) =>
+        `${attr}="/proxy?url=${encodeURIComponent(base + "/" + path)}"`
+    );
+
+    // 🔥 rewrite absolute links
+    text = text.replace(/(href|src|action)=["']https?:\/\/(.*?)["']/gi,
+      (m, attr, url) =>
+        `${attr}="/proxy?url=${encodeURIComponent("https://" + url)}"`
+    );
+
+    // 🔥 rewrite JS fetch calls
+    text = text.replace(/fetch\(["'](.*?)["']/gi,
+      (m, url) =>
+        `fetch("/proxy?url=${encodeURIComponent(url)}"`
+    );
+
+    // 🔥 rewrite window.location
+    text = text.replace(/window\.location\s*=\s*["'](.*?)["']/gi,
+      (m, url) =>
+        `window.location="/proxy?url=${encodeURIComponent(url)}"`
+    );
+
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.send(text);
 
   } catch (err) {
     console.error(err);
@@ -50,5 +62,5 @@ app.get("/fetch", async (req, res) => {
 });
 
 app.listen(3000, () => {
-  console.log("Proxy running on port 3000");
+  console.log("Running on http://localhost:3000");
 });
