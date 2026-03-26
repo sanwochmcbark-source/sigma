@@ -326,7 +326,9 @@ if ('serviceWorker' in navigator) {
     res.status(500).send("Proxy error");
   }
 });
+
 app.get("/", (req, res) => {
+  console.log("ROOT HIT");
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
