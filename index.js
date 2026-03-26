@@ -25,6 +25,13 @@ app.get("/fetch", async (req, res) => {
     if (contentType.includes("text/html")) {
       let text = await response.text();
 
+    // 🔥 FIX RELATIVE PATHS
+    const base = new URL(targetUrl).origin;
+    
+    text = text.replace(/(href|src)=["']\/(.*?)["']/gi, (match, attr, path) => {
+      return `${attr}="${base}/${path}"`;
+    });
+
       text = text
         .replace(/X-Frame-Options/gi, "")
         .replace(/Content-Security-Policy/gi, "");
