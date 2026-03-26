@@ -4,10 +4,12 @@ const app = express();
 
 const API_KEY = process.env.SCRAPINGBEE_KEY;
 
+// ✅ Fix for "Cannot GET /"
 app.get("/", (req, res) => {
   res.send("Server is running ✅");
 });
 
+// 🔥 Main proxy route
 app.get("/fetch", async (req, res) => {
   const url = req.query.url;
   if (!url) return res.status(400).send("Missing URL");
