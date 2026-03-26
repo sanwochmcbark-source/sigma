@@ -1,9 +1,12 @@
 const express = require("express");
 const fetch = require("node-fetch");
+const path = require("path");
 
 const app = express();
 
-const SCRAPINGBEE_API_KEY = process.env.SCRAPINGBEE_API_KEY; // 🔥 BACK TO ORIGINAL STYLE
+app.use(express.static(path.join(__dirname))); // 🔥 ADD THIS
+
+const SCRAPINGBEE_API_KEY = process.env.SCRAPINGBEE_API_KEY;
 
 app.get("/fetch", async (req, res) => {
   const targetUrl = req.query.url;
