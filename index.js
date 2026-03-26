@@ -2,8 +2,7 @@ const express = require("express");
 const fetch = require("node-fetch");
 
 const app = express();
-
-const SCRAPINGBEE_API_KEY = "P2J007K7MLOAWKLDK7FV8HE2Y8T8PHZ73R1FS8Z2D4IB29WB2AH4YAY6JWJ8P0ZDXUBVT5YH9192W3ZD"; // 🔑 PUT IT HERE
+const SCRAPINGBEE_API_KEY = process.env.SCRAPINGBEE_API_KEY;
 
 app.get("/fetch", async (req, res) => {
   const targetUrl = req.query.url;
